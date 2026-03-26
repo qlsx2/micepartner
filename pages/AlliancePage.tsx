@@ -3,38 +3,68 @@ import { Helmet } from 'react-helmet-async';
 import { Container } from '../components/ui/Container';
 import { Search, MapPin, Phone, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
-import { getAllianceMembers, AllianceMember } from '../src/api/cmsApi';
+import {
+  getAllianceMembers,
+  getAllianceCategories,
+  getAllianceCategoryNames,
+  normalizeAllianceCategoryName,
+  AllianceMember,
+  AllianceCategory,
+} from '../src/api/cmsApi';
 
 // Internal Navigation Tabs
 const TABS = ["회원사 소개", "가입안내 및 혜택", "회원사 공지사항", "회원사 소식"];
 
 export const AlliancePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("회원사 소개");
+  const [selectedCategory, setSelectedCategory] = useState('전체');
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8; // 2 cols x 4 rows
 
   const [members, setMembers] = useState<AllianceMember[]>([]);
+  const [categories, setCategories] = useState<AllianceCategory[]>([]);
   const [loading, setLoading] = useState(true);
 
   React.useEffect(() => {
-    const fetchMembers = async () => {
+    const fetchData = async () => {
       try {
-        const data = await getAllianceMembers();
-        setMembers(data);
+        const [memberData, categoryData] = await Promise.all([
+          getAllianceMembers(),
+          getAllianceCategories().catch((error) => {
+            console.error('Failed to load alliance categories:', error);
+            return [];
+          }),
+        ]);
+
+        setMembers(memberData);
+        setCategories(categoryData);
       } catch (error) {
         console.error('Failed to load alliance members:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchMembers();
+    fetchData();
   }, []);
 
-  // Filter Logic (Simple Name Search)
-  const filteredMembers = members.filter(member =>
-    member.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const categoryTabs = ['전체', ...getAllianceCategoryNames(categories, members)];
+
+  React.useEffect(() => {
+    if (selectedCategory !== '전체' && !categoryTabs.includes(selectedCategory)) {
+      setSelectedCategory('전체');
+    }
+  }, [categoryTabs, selectedCategory]);
+
+  // Filter Logic
+  const filteredMembers = members.filter((member) => {
+    const matchesCategory =
+      selectedCategory === '전체' ||
+      normalizeAllianceCategoryName(member.category1) === selectedCategory;
+    const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase());
+
+    return matchesCategory && matchesSearch;
+  });
 
   // Pagination Logic
   const totalItems = filteredMembers.length;
@@ -102,6 +132,28 @@ export const AlliancePage: React.FC = () => {
             </div>
           </div>
 
+          <div className="mb-8 border-b border-gray-200">
+            <div className="flex gap-6 overflow-x-auto whitespace-nowrap">
+              {categoryTabs.map((category) => (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory(category);
+                    setCurrentPage(1);
+                  }}
+                  aria-pressed={selectedCategory === category}
+                  className={`border-b-[3px] px-1 py-3 text-base font-semibold transition-colors md:text-[17px]
+                    ${selectedCategory === category
+                      ? 'border-[#FF5B60] text-[#FF5B60]'
+                      : 'border-transparent text-gray-500 hover:text-gray-900'}`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Results Info */}
           <div className="flex justify-between items-end pb-4 border-b border-gray-900 mb-8">
             <p className="text-sm">
@@ -132,12 +184,12 @@ export const AlliancePage: React.FC = () => {
                     {/* Tags */}
                     <div className="flex gap-2 mb-3">
                       <span className={`text-[13px] font-bold px-3 py-1 rounded border
-                        ${member.category1 === 'MICE 시설분과' ? 'text-[#e69b00] bg-[#fff9ea] border-[#ffe099]' :
-                          member.category1 === 'MICE 기획 · 운영분과' || member.category1 === 'MICE 기획분과' ? 'text-[#3b5bdb] bg-[#edf2ff] border-[#bac8ff]' :
-                            member.category1 === 'MICE 지원분과' ? 'text-[#0ca678] bg-[#e6fcf5] border-[#63e6be]' :
+                        ${normalizeAllianceCategoryName(member.category1) === 'MICE 시설분과' ? 'text-[#e69b00] bg-[#fff9ea] border-[#ffe099]' :
+                          normalizeAllianceCategoryName(member.category1) === 'MICE 기획 · 운영분과' ? 'text-[#3b5bdb] bg-[#edf2ff] border-[#bac8ff]' :
+                            normalizeAllianceCategoryName(member.category1) === 'MICE 지원분과' ? 'text-[#0ca678] bg-[#e6fcf5] border-[#63e6be]' :
                               'text-gray-600 bg-gray-100 border-gray-300'}`}
                       >
-                        {member.category1 === 'MICE 기획분과' ? 'MICE 기획 · 운영분과' : member.category1}
+                        {normalizeAllianceCategoryName(member.category1)}
                       </span>
                       <span className="text-[13px] text-gray-500 bg-white px-3 py-1 rounded border border-gray-200">
                         {member.category2}

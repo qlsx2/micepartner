@@ -111,9 +111,11 @@ const OptionItem = ({
         <p className="text-[11px] sm:text-xs text-gray-400 mt-0.5 line-clamp-2 sm:line-clamp-1">
           {item.short_description || item.description || item.model_name || "상세 설명 없음"}
         </p>
-        <p className="text-sm font-bold text-[#FF5B60] mt-0.5">
-          {item.price ? `${item.price.toLocaleString()}원` : "가격문의"}
-        </p>
+        {item.price > 0 && (
+          <p className="text-sm font-bold text-[#FF5B60] mt-0.5">
+            {item.price.toLocaleString()}원
+          </p>
+        )}
       </div>
 
       {/* Desktop (PC) UI: Original Framed Style */}
@@ -273,6 +275,28 @@ const getCategorizedGroups = (items: Product[], menuItems: NavMenuItem[], tabTyp
       return a.name.localeCompare(b.name, 'ko-KR');
     });
 };
+
+const getQuantityUnit = (item: Product) => {
+  const name = item.name || "";
+
+  if (/복합기|프린터|노트북|모니터|키오스크|냉장고|카메라|프로젝터|빔|마이크|스피커|TV|태블릿|PC/i.test(name)) {
+    return "대";
+  }
+
+  if (
+    item.product_type === "cooperative" ||
+    item.product_type === "place" ||
+    item.product_type === "food" ||
+    /촬영|대관|제작|케이터링|운영|설치|철거|통역|사회|진행|서비스/i.test(name)
+  ) {
+    return "건";
+  }
+
+  return "개";
+};
+
+const formatQuantityLabel = (item: Product, quantity: number) =>
+  `${quantity}${getQuantityUnit(item)}`;
 
 const OptionListTypeA = ({
   items,
@@ -735,30 +759,50 @@ export const ProductDetailPage: React.FC = () => {
 
   // Calculate selected options summary
   const getSelectedOptionsSummary = () => {
-    const summary: { name: string; qty: number; subtotal: number }[] = [];
+    const summary: { name: string; qty: number; subtotal: number; quantityLabel: string }[] = [];
     Object.entries(selectedCooperative).forEach(([key, qty]) => {
       const quantity = qty as number;
       const item = globalCooperative.find((p) => p.id === key);
       if (item && quantity > 0)
-        summary.push({ name: item.name, qty: quantity, subtotal: item.price * quantity });
+        summary.push({
+          name: item.name,
+          qty: quantity,
+          subtotal: item.price * quantity,
+          quantityLabel: formatQuantityLabel(item, quantity),
+        });
     });
     Object.entries(selectedAdditional).forEach(([key, qty]) => {
       const quantity = qty as number;
       const item = globalAdditional.find((p) => p.id === key);
       if (item && quantity > 0)
-        summary.push({ name: item.name, qty: quantity, subtotal: item.price * quantity });
+        summary.push({
+          name: item.name,
+          qty: quantity,
+          subtotal: item.price * quantity,
+          quantityLabel: formatQuantityLabel(item, quantity),
+        });
     });
     Object.entries(selectedPlaces).forEach(([key, qty]) => {
       const quantity = qty as number;
       const item = globalPlaces.find((p) => p.id === key);
       if (item && quantity > 0)
-        summary.push({ name: item.name, qty: quantity, subtotal: item.price * quantity });
+        summary.push({
+          name: item.name,
+          qty: quantity,
+          subtotal: item.price * quantity,
+          quantityLabel: formatQuantityLabel(item, quantity),
+        });
     });
     Object.entries(selectedFoods).forEach(([key, qty]) => {
       const quantity = qty as number;
       const item = globalFoods.find((p) => p.id === key);
       if (item && quantity > 0)
-        summary.push({ name: item.name, qty: quantity, subtotal: item.price * quantity });
+        summary.push({
+          name: item.name,
+          qty: quantity,
+          subtotal: item.price * quantity,
+          quantityLabel: formatQuantityLabel(item, quantity),
+        });
     });
     return summary;
   };
@@ -1272,7 +1316,7 @@ export const ProductDetailPage: React.FC = () => {
                     <div className="flex justify-between">
                       <span className="text-gray-500">{product.name}</span>
                       <span className="font-medium text-gray-900">
-                        {(product.price || 0).toLocaleString()}원
+                        {formatQuantityLabel(product, 1)}
                       </span>
                     </div>
                   </div>
@@ -1283,17 +1327,15 @@ export const ProductDetailPage: React.FC = () => {
                       <p className="text-xs font-semibold text-gray-500 mb-2">
                         선택한 옵션
                       </p>
-                      <div className="space-y-2 text-sm max-h-40 overflow-y-auto">
+                      <div className="space-y-2 text-sm">
                         {selectedSummary.map((opt, idx) => (
                           <div
                             key={idx}
                             className="flex justify-between text-gray-700"
                           >
-                            <span className="truncate flex-1">
-                              {opt.name} x{opt.qty}
-                            </span>
+                            <span className="truncate flex-1">{opt.name}</span>
                             <span className="font-medium ml-2">
-                              {(opt.subtotal).toLocaleString()}원
+                              {opt.quantityLabel}
                             </span>
                           </div>
                         ))}
@@ -1302,7 +1344,7 @@ export const ProductDetailPage: React.FC = () => {
                   )}
 
                   {/* Total Price */}
-                  <div className="mt-6 pt-4 border-t-2 border-gray-900">
+                  <div className="mt-6 pt-4 border-t border-gray-200">
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-gray-900">
                         예상 견적 비용
@@ -1454,7 +1496,7 @@ export const ProductDetailPage: React.FC = () => {
               <div className="flex justify-between">
                 <span className="text-gray-500">{product.name}</span>
                 <span className="font-medium text-gray-900">
-                  {(product.price || 0).toLocaleString()}원
+                  {formatQuantityLabel(product, 1)}
                 </span>
               </div>
             </div>
@@ -1467,18 +1509,16 @@ export const ProductDetailPage: React.FC = () => {
                 </p>
                 <div className="space-y-2 text-sm">
                   {selectedSummary.map((opt, idx) => (
-                    <div
-                      key={idx}
-                      className="flex justify-between text-gray-700"
-                    >
-                      <span className="truncate flex-1">
-                        {opt.name} x{opt.qty}
-                      </span>
-                      <span className="font-medium ml-2">
-                        {(opt.subtotal).toLocaleString()}원
-                      </span>
-                    </div>
-                  ))}
+                  <div
+                    key={idx}
+                    className="flex justify-between text-gray-700"
+                  >
+                    <span className="truncate flex-1">{opt.name}</span>
+                    <span className="font-medium ml-2">
+                      {opt.quantityLabel}
+                    </span>
+                  </div>
+                ))}
                 </div>
               </div>
             )}

@@ -169,7 +169,7 @@ export const NavMenuManager = () => {
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800">전체 메뉴 관리</h2>
-                    <p className="text-slate-500 text-sm mt-1">웹사이트 전체 메뉴(사이트맵) 구조를 관리합니다.</p>
+                    <p className="text-slate-500 text-sm mt-1">웹사이트 전체 메뉴 구조와 부가서비스 옵션 카테고리를 함께 관리합니다.</p>
                 </div>
             </div>
 
